@@ -92,10 +92,12 @@ contains
     end subroutine
     
     subroutine read_arg(a1)
-        character(len=*) :: a1
+        character(len=:), allocatable :: a1
+        character(len=1048) :: input_str
         inp_pos = inp_pos + 1
         
-        call getarg(inp_pos,a1)
+        call getarg(inp_pos, input_str)
+        a1 = trim(adjustl(input_str))
     end subroutine
 
     subroutine print_warning(c1)

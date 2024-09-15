@@ -42,9 +42,12 @@ use kinds_mod
 implicit none
     
     ! File read/write arguments and parameter
-    character*1024                :: f_output, f_temp
+    character(len=:), allocatable :: f_output, f_input
+    character(len=1024)           :: f_temp
     integer, parameter            :: und_output = 10
-    
+
+    ! Network
+    type(network)                 :: net
     
     ! Dynamics samples variables
     integer                       :: dynp_i, dynp_sam       ! samples vars
@@ -83,7 +86,7 @@ contains
  & each sample): ")
         
         ! Allocate the SIS-OGA lists V^I
-        allocate(dyn_VI(net_N),dyn_sig(net_N))
+        allocate(dyn_VI(net%N),dyn_sig(net%N))
     end subroutine
     
     subroutine random_initial_condition()
@@ -95,14 +98,14 @@ contains
         dyn_Nk = 0  ! N_k
         
         ! Sort vertices and apply the initial condition
-        do vti = 1, int(net_N*dynp_pINI)
+        do vti = 1, int(net%N*dynp_pINI)
             vti_ver : do
-                ver = rgen%int_i4(1,net_N)
+                ver = rgen%int_i4(1,net%N)
                 if (dyn_sig(ver) == 0) then
                     dyn_NI = dyn_NI + 1
                     dyn_VI(dyn_NI) = ver
                     dyn_sig(ver) = 1
-                    dyn_Nk = dyn_Nk + net_k(ver)
+                    dyn_Nk = dyn_Nk + net%vertices(ver)%degree
                     exit vti_ver
                 endif
             enddo vti_ver
@@ -110,7 +113,7 @@ contains
         
         dyn_t = 0d0
         dyn_dt_pos = 1
-    end subroutine    
+    end subroutine
 
     subroutine dyn_run()
     
@@ -145,7 +148,7 @@ contains
                 
                 ! Then, heal it
                 dyn_sig(ver) = 0
-                dyn_Nk = dyn_Nk - net_k(ver)
+                dyn_Nk = dyn_Nk - net%vertices(ver)%degree
                 dyn_VI(pos_inf) = dyn_VI(dyn_NI) ! Swap positions
                 dyn_NI = dyn_NI - 1             ! Then, short the list
                 
@@ -155,17 +158,17 @@ contains
                 select_infec : do
                     pos_inf = rgen%int_i4(1,dyn_NI)
                     ver = dyn_VI(pos_inf)
-                    if (rgen%rnd() < 1d0*net_k(ver)/(1d0*net_kmax)) exit select_infec
+                    if (rgen%rnd() < 1d0*net%vertices(ver)%degree/(1d0*net_kmax)) exit select_infec
                 enddo select_infec
                 
                 ! select one of its neighbors
-                pos_nei = rgen%int_i4(net_ini(ver) , net_ini(ver) + net_k(ver) - 1)
-                ver = net_con(pos_nei)
+                pos_nei = rgen%int_i4(1 , net%vertices(ver)%degree)
+                ver = net%vertices(ver)%nei(pos_nei)
                 
                 ! if not a phantom process, infect
                 if (dyn_sig(ver) == 0) then
                     dyn_sig(ver) = 1
-                    dyn_Nk = dyn_Nk + net_k(ver)
+                    dyn_Nk = dyn_Nk + net%vertices(ver)%degree
                     dyn_NI = dyn_NI + 1     ! Increase by 1 the list
                     dyn_VI(dyn_NI) = ver    ! Add one element to list
                 endif
@@ -173,7 +176,7 @@ contains
             
             ! Try to save the dynamics by time unit
             do while (dyn_t >= dyn_dt_pos)
-                avg_rho(dyn_dt_pos) = avg_rho(dyn_dt_pos) + 1d0*dyn_NI/net_N
+                avg_rho(dyn_dt_pos) = avg_rho(dyn_dt_pos) + 1d0*dyn_NI/net%N
                 avg_t(dyn_dt_pos) = avg_t(dyn_dt_pos) + dyn_t
                 avg_sam(dyn_dt_pos) = avg_sam(dyn_dt_pos) + 1 
                 if (dyn_NI .ne. 0) then
@@ -206,10 +209,10 @@ contains
         call read_arg(f_output)
     
         ! Read network to memory
-        call readEdges()
+        call net%readEdges(f_input)
     
         ! To be used in the SIS-OGA algorithm. Calculate the k_max of the network
-        net_kmax = maxval(net_k)
+        net_kmax = maxval(net%vertices(:)%degree)
     
         ! Initate the random generator
         call print_info('')
@@ -245,8 +248,8 @@ contains
             write(und_output,'(a)')         "## ***** Algorithm used: Optimized Gillespie Algorithm for SIS &
                                             & (SIS-OGA, Fortran) *****"
             write(und_output,'(a)')         "#@ Network file: "//trim(adjustl(f_input))
-            write(und_output,'(a,i7)')      "#@ Number of nodes: ", net_N
-            write(und_output,'(a,i7)')      "#@ Number of edges: ", net_skk
+            write(und_output,'(a,i7)')      "#@ Number of nodes: ", net%N
+            write(und_output,'(a,i7)')      "#@ Number of edges: ", net%skk
             write(und_output,'(a,i7)')      "#! Samples: ", dynp_i
             write(und_output,'(a,f11.5)')   "#! Infection rate lambda: ", dynp_lb
             write(und_output,'(a,i7)')      "#! Maximum time steps: ", dynp_tmax
