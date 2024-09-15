@@ -36,7 +36,21 @@
 
 program dynSIS
 use mod_SIS_OGA
+use rndgen_mod
+use netdata_mod
 implicit none
+
+    ! Network
+    type(network)    :: net
+
+    ! random generator
+    integer(kind=i4) :: seed = 20240915
+    type(rndgen)     :: rgen
+
+    ! File read/write arguments and parameter
+    character(len=:), allocatable :: f_output, f_input
+    character(len=1024)           :: f_temp
+    integer, parameter            :: und_output = 10
     
     call print_info('################################################################################')
     call print_info('### Optimized Gillespie algorithms for the simulation of Markovian epidemic  ###')
@@ -54,10 +68,7 @@ implicit none
 
     ! Read network to memory
     call net%readEdges(f_input)
-
-    ! To be used in the SIS-OGA algorithm. Calculate the k_max of the network
-    net_kmax = maxval(net%vertices(:)%degree)
-
+    
     ! Initate the random generator
     call print_info('')
     call print_progress('Starting pseudo random number generator')
@@ -67,7 +78,7 @@ implicit none
     ! We are ready! All network data is here, now we need to read the dynamical parameters.
     call print_info('')
     call print_info('Now we need to read the dynamical parameters.')
-    call read_dyn_parameters()
+    call read_dyn_parameters(net)
 
     ! Let's run the dynamics. But first, we allocate the average matrices
     allocate(avg_rho(dynp_tmax), avg_t(dynp_tmax), avg_sam(dynp_tmax), avg_samSurv(dynp_tmax))
@@ -85,7 +96,7 @@ implicit none
         call print_progress('Sample # '//trim(adjustl(f_temp)))
 
         ! Run dynamics
-        call dyn_run()
+        call dyn_run(net, rgen)
 
         ! Open file and write info
         open(und_output,file=f_output)

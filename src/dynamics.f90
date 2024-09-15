@@ -41,14 +41,6 @@ use rndgen_mod
 use kinds_mod
 implicit none
     
-    ! File read/write arguments and parameter
-    character(len=:), allocatable :: f_output, f_input
-    character(len=1024)           :: f_temp
-    integer, parameter            :: und_output = 10
-
-    ! Network
-    type(network)                 :: net
-    
     ! Dynamics samples variables
     integer                       :: dynp_i, dynp_sam       ! samples vars
     real*8                        :: dynp_lb                ! lambda infection rate. mu is defined as = 1
@@ -71,15 +63,12 @@ implicit none
     real*8, allocatable           :: avg_rho(:), avg_t(:)   ! Average for rho at times t, averaged
     integer, allocatable          :: avg_sam(:), avg_samSurv(:) ! # of samples for each time t, and of survivng ones
     integer                       :: dyn_dt_pos, dyn_dt_pos_max ! auxiliar vars
-
-    ! random generator
-    integer(kind=i4) :: seed = 20240915
-    type(rndgen) :: rgen
     
 contains
     
-    subroutine read_dyn_parameters()
-        call read_input(dynp_sam,"How much dynamics samples? ")
+    subroutine read_dyn_parameters(net)
+        type(network), intent(in) :: net
+        call read_input(dynp_sam,"How many dynamics samples? ")
         call read_input(dynp_lb,"Value of infection rate lambda (mu is defined as equal to 1): ")
         call read_input(dynp_tmax,"Maximum time steps (it stops if the absorbing state is reached): ")
         call read_input(dynp_pINI,"Fraction of infected vertices on the network as initial condition (is random for &
@@ -87,9 +76,14 @@ contains
         
         ! Allocate the SIS-OGA lists V^I
         allocate(dyn_VI(net%N),dyn_sig(net%N))
+
+        ! Calculate the k_max of the network
+        net_kmax = maxval(net%vertices(:)%degree)
     end subroutine
     
-    subroutine random_initial_condition()
+    subroutine random_initial_condition(net,rgen)
+        type(network), intent(in) :: net
+        type(rndgen), intent(inout) :: rgen
         integer :: ver, vti
         
         dyn_sig = 0 ! sigma
@@ -115,13 +109,15 @@ contains
         dyn_dt_pos = 1
     end subroutine
 
-    subroutine dyn_run()
+    subroutine dyn_run(net,rgen)
+        type(network), intent(in) :: net
+        type(rndgen), intent(inout) :: rgen
     
         integer :: pos_inf
         integer :: ver, pos_nei
         real*8  :: rnd
     
-        call random_initial_condition()
+        call random_initial_condition(net,rgen)
         
         dyn_time_loop : do while (dyn_t <= dynp_tmax)
         
