@@ -70,7 +70,7 @@ module netdata_mod
             
             ! auxiliar integers
             integer                     :: aux_i1, aux_i2
-            integer                     :: iaux, itmp
+            integer                     :: iaux
             integer                     :: ver, ver1, ver2
     
             ! file io
