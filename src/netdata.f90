@@ -98,7 +98,7 @@ module netdata_mod
                 f_input_nl = f_input_nl + 1
             enddo f_input_loop
         
-            close(1); open(1,file=f_input,action='read',status='old') ! input file is opened again
+            close(f_unit); open(newunit=f_unit,file=f_input,action='read',status='old') ! input file is opened again
     
             ! We already have the size of the network this%N. Now, assuming all edges undirected, this%skk = 2*f_input_nl,
             ! twice the number of lines (see README.md to know how to save the data).
@@ -130,7 +130,7 @@ module netdata_mod
                 this%vertices(aux_i1)%degree = this%vertices(aux_i1)%degree + 1
                 this%vertices(aux_i2)%degree = this%vertices(aux_i2)%degree + 1
             enddo input_con_loop
-            close(1) ! we do not need the file anymore
+            close(f_unit) ! we do not need the file anymore
         
             ! Is REALLY everything ok? Let's check!
             if (count(tmp_con == 0) > 0) call print_error('Please, verify your data. Something is not right! [count(tmp_con == 0) > 0]')
