@@ -40,7 +40,6 @@ module netdata_mod
     private
     
         type :: vertex
-            integer :: index ! vertex index
             integer :: degree ! degree
             integer, allocatable :: nei(:)
         end type vertex
