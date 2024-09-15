@@ -76,10 +76,10 @@ implicit none
 contains
     
     subroutine read_dyn_parameters()
-        call read_i(dynp_sam,"How much dynamics samples? ")
-        call read_f(dynp_lb,"Value of infection rate lambda (mu is defined as equal to 1): ")
-        call read_i(dynp_tmax,"Maximum time steps (it stops if the absorbing state is reached): ")
-        call read_f(dynp_pINI,"Fraction of infected vertices on the network as initial condition (is random for &
+        call read_input(dynp_sam,"How much dynamics samples? ")
+        call read_input(dynp_lb,"Value of infection rate lambda (mu is defined as equal to 1): ")
+        call read_input(dynp_tmax,"Maximum time steps (it stops if the absorbing state is reached): ")
+        call read_input(dynp_pINI,"Fraction of infected vertices on the network as initial condition (is random for &
  & each sample): ")
         
         ! Allocate the SIS-OGA lists V^I
@@ -200,10 +200,7 @@ contains
         call print_info('##======== Please cite the above cited paper as reference to our code ========##')
         call print_info('##=== This code is under GNU General Public License. Please see README.md. ===##')
         call print_info('################################################################################')
-    
-        ! initial value of input counter to read command arguments, used by mod_read_tools
-        inp_pos = 1 
-    
+        
         ! Files arguments read
         call read_arg(f_input)
         call read_arg(f_output)

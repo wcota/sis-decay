@@ -35,8 +35,21 @@
 ! For NetworkX library, see <https://github.com/wcota/dynSIS-networkx> (NetworkX implementation)
 
 module read_tools_mod
-    integer                        :: inp_pos
+    implicit none
+    private
+
+    integer                        :: inp_pos = 0
     character*3, private, parameter :: sub_read = '#? '
+
+    interface read_input
+      module procedure read_i
+      module procedure read_l
+      module procedure read_f
+        module procedure read_a
+      ! Add more procedures for other types as needed
+   end interface read_input
+
+    public :: read_input, read_arg, deal, print_warning, print_error, print_info, print_progress, print_done
     
 contains
 
@@ -80,9 +93,9 @@ contains
     
     subroutine read_arg(a1)
         character(len=*) :: a1
+        inp_pos = inp_pos + 1
         
         call getarg(inp_pos,a1)
-        inp_pos = inp_pos + 1
     end subroutine
 
     subroutine print_warning(c1)
