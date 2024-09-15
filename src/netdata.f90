@@ -96,7 +96,7 @@ module netdata_mod
             ! Is REALLY everything ok? Let's check!
             if (count(edges == 0) > 0) call print_error('Please, verify your data. Something is not right! [count(edges == 0) > 0]')
 
-            call print_progress('Calculating degrees...')
+            call print_progress('Calculating degrees')
 
             ! We will use aux_degree to store the position of the next neighbor to be added
             allocate(aux_degree(this%N))
