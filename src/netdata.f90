@@ -87,7 +87,7 @@ module netdata_mod
             call print_progress('Calculating number of lines to read and allocating matrices')
             f_input_nl = 0
             f_input_loop : do
-                read(1,*,IOSTAT=f_sig) aux_i1, aux_i2
+                read(f_unit,*,IOSTAT=f_sig) aux_i1, aux_i2
                 if (f_sig < 0) exit f_input_loop ! if end of file, exit. No "goto" allowed! :)
                 
                 if (aux_i1 == aux_i2) call print_error("Self-connection found! Verify your data.")
@@ -117,7 +117,7 @@ module netdata_mod
             ! Let's read the file again, this time saving the connections, since we already know the total number of connections.
             call print_progress('Reading the file again and collecting data')
             input_con_loop : do
-                read(1,*,IOSTAT=f_sig) aux_i1, aux_i2
+                read(f_unit,*,IOSTAT=f_sig) aux_i1, aux_i2
                 if (f_sig < 0) exit input_con_loop ! if end of file, exit.
     
                 pos_con = pos_con + 1 ! new connection is saved
