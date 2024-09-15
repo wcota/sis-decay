@@ -54,7 +54,7 @@ module netdata_mod
             procedure :: readEdges
         end type network
     
-        public :: network, edges_from_file
+        public :: network, vertex, edges_from_file
         
     contains
         ! to be compatible with old calls
@@ -102,14 +102,14 @@ module netdata_mod
             allocate(aux_degree(this%N))
             aux_degree = 0 ! auxiliar degree is zero at the beginning
             
-            do iaux=1,size(edges,2)
+            do iaux=1, size(edges,2)
                 ver1 = edges(1,iaux)
                 ver2 = edges(2,iaux)
                 
                 ! degree is added to both vertices
                 this%vertices(ver1)%degree = this%vertices(ver1)%degree + 1
                 this%vertices(ver2)%degree = this%vertices(ver2)%degree + 1
-            enddo
+            end do
             
             ! Allocate the neighbors list
             do concurrent (ver=1:this%N)
