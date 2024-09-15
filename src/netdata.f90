@@ -51,93 +51,59 @@ module netdata_mod
     
             type(vertex), allocatable :: vertices(:)
         contains
-            procedure :: readEdges
+            procedure :: build_from_edges
+            procedure :: buildEdges
         end type network
     
-        public :: network
+        public :: network, edges_from_file
         
     contains
-        subroutine readEdges(this, f_input)
+        ! to be compatible with old calls
+        subroutine buildEdges(this, f_input)
             class(network), intent(inout) :: this
-        
-            ! input file read variables
-            integer                     :: f_input_nl ! number of lines
+            character(len=*) :: f_input
+
+            integer, allocatable :: edges(:,:)
+            
+            edges = edges_from_file(f_input)
+            call build_from_edges(this, edges)
+            
+            deallocate(edges)
+        end subroutine
+
+        subroutine build_from_edges(this, edges)
+            class(network), intent(inout) :: this
+            integer, intent(in) :: edges(:,:)
+
+            ! number of edges (undirected)
+            integer                     :: n_edges ! number of lines
             
             ! Temporary integers
-            integer, allocatable        :: tmp_con(:,:) ! temporary edges lists
-            integer                     :: pos_con ! position of edges
             integer, allocatable        :: aux_degree(:) ! to check if all neighbors are in the list
             
             ! auxiliar integers
             integer                     :: aux_i1, aux_i2
             integer                     :: iaux
             integer                     :: ver, ver1, ver2
-    
-            ! file io
-            character(len=*)            :: f_input
-            integer                     :: f_sig ! file signal
-            integer                     :: f_unit
-            
-            ! input file is opened
-            open(newunit=f_unit,file=f_input,action='read',status='old')
-            
-            ! We set this%N to be the largest value read
-            this%N = 0
-        
-            call print_progress('Calculating number of lines to read and allocating matrices')
-            f_input_nl = 0
-            f_input_loop : do
-                read(f_unit,*,IOSTAT=f_sig) aux_i1, aux_i2
-                if (f_sig < 0) exit f_input_loop ! if end of file, exit. No "goto" allowed! :)
-                
-                if (aux_i1 == aux_i2) call print_error("Self-connection found! Verify your data.")
-                if (aux_i1 < 1 .or. aux_i2 < 1) call print_error('Vertex id MUST be >= 1. Verify your data!')
-                
-                this%N = max(this%N, aux_i1, aux_i2) ! will be the largest value found
-                
-                f_input_nl = f_input_nl + 1
-            enddo f_input_loop
-        
-            close(f_unit); open(newunit=f_unit,file=f_input,action='read',status='old') ! input file is opened again
-    
-            ! We already have the size of the network this%N. Now, assuming all edges undirected, this%skk = 2*f_input_nl,
+
+            ! The network size is the maximum values. Now, assuming all edges undirected, this%skk = 2*number of edges,
             ! twice the number of lines (see README.md to know how to save the data).
-            this%skk = 2*f_input_nl
-        
-            allocate(tmp_con(2,f_input_nl)) ! We need to calculate the degree of the network, and to do this we will have 
-                                            ! to read the file again. So, we save the data on the way.
+
+            n_edges = size(edges,2)
+
+            this%N = maxval(edges)
+            this%skk = 2*n_edges
+
             allocate(this%vertices(this%N))
-        
-            ! number of edges added
-            pos_con = 0
-            tmp_con = 0 ! list of connections read
             this%vertices(:)%degree = 0 ! degree is zero at the beginning
-            call print_done()
-        
-            ! Let's read the file again, this time saving the connections, since we already know the total number of connections.
-            call print_progress('Reading the file again and collecting data')
-            input_con_loop : do
-                read(f_unit,*,IOSTAT=f_sig) aux_i1, aux_i2
-                if (f_sig < 0) exit input_con_loop ! if end of file, exit.
-    
-                pos_con = pos_con + 1 ! new connection is saved
-            
-                ! save line to array
-                tmp_con(1,pos_con) = aux_i1
-                tmp_con(2,pos_con) = aux_i2
-            
-                ! degree is added to both vertices
-                this%vertices(aux_i1)%degree = this%vertices(aux_i1)%degree + 1
-                this%vertices(aux_i2)%degree = this%vertices(aux_i2)%degree + 1
-            enddo input_con_loop
-            close(f_unit) ! we do not need the file anymore
         
             ! Is REALLY everything ok? Let's check!
-            if (count(tmp_con == 0) > 0) call print_error('Please, verify your data. Something is not right! [count(tmp_con == 0) > 0]')
+            if (count(edges == 0) > 0) call print_error('Please, verify your data. Something is not right! [count(edges == 0) > 0]')
             if (sum(this%vertices(:)%degree) .ne. this%skk) call print_error('Please, CHECK! Sum of degrees IS NOT equal the number of connections found & 
     & in the file')
             call print_done()
-            
+
+
             call print_progress('Builing adjacency list')
             ! Everything OK! 
             ! Now we will build the REAL list of adjacency.
@@ -152,9 +118,18 @@ module netdata_mod
                 this%vertices(ver)%nei = 0
             end do
             
-            do iaux=1,f_input_nl
-                ver1 = tmp_con(1,iaux)
-                ver2 = tmp_con(2,iaux)
+            do iaux=1,size(edges,2)
+                ver1 = edges(1,iaux)
+                ver2 = edges(2,iaux)
+                
+                ! degree is added to both vertices
+                this%vertices(aux_i1)%degree = this%vertices(aux_i1)%degree + 1
+                this%vertices(aux_i2)%degree = this%vertices(aux_i2)%degree + 1
+            enddo
+            
+            do iaux=1,size(edges,2)
+                ver1 = edges(1,iaux)
+                ver2 = edges(2,iaux)
                 
                 ! Just to check...
                 if (this%vertices(ver1)%nei(aux_degree(ver1)+1) .ne. 0) call print_error('Somethings is wrong, con list overflow. Verify your data! &
@@ -173,13 +148,74 @@ module netdata_mod
             ! Let's check again...
             if (any(this%vertices(:)%degree /= aux_degree)) call print_error('Verify your data. [count(this%con == 0) > 0]')
         
-            ! We do not need tmp_con and aux_degree anymore!
-            deallocate(tmp_con)
+            ! We do not need edges and aux_degree anymore!
             deallocate(aux_degree)
             
             ! Now, everything is fine and we have the network data ready to be used! ;)
             call print_done()
+            
+        end subroutine
+
+        function edges_from_file(f_input) result(edges)
+            integer, allocatable        :: edges(:,:)
         
-        end subroutine readEdges
+            ! input file read variables
+            integer                     :: f_input_nl ! number of lines
+            
+            ! Temporary integers
+            integer                     :: pos_con ! position of edges
+            integer, allocatable        :: aux_degree(:) ! to check if all neighbors are in the list
+            
+            ! auxiliar integers
+            integer                     :: aux_i1, aux_i2
+            integer                     :: iaux
+            integer                     :: ver, ver1, ver2
+    
+            ! file io
+            character(len=*)            :: f_input
+            integer                     :: f_sig ! file signal
+            integer                     :: f_unit
+
+            ! input file is opened
+            open(newunit=f_unit,file=f_input,action='read',status='old')
+        
+            call print_progress('Calculating number of lines to read and allocating matrices')
+            f_input_nl = 0
+            f_input_loop : do
+                read(f_unit,*,IOSTAT=f_sig) aux_i1, aux_i2
+                if (f_sig < 0) exit f_input_loop ! if end of file, exit. No "goto" allowed! :)
+                
+                if (aux_i1 == aux_i2) call print_error("Self-connection found! Verify your data.")
+                if (aux_i1 < 1 .or. aux_i2 < 1) call print_error('Vertex id MUST be >= 1. Verify your data!')
+                
+                f_input_nl = f_input_nl + 1
+            enddo f_input_loop
+        
+            close(f_unit)
+            open(newunit=f_unit,file=f_input,action='read',status='old') ! input file is opened again
+            
+            allocate(edges(2,f_input_nl)) ! We need to calculate the degree of the network, and to do this we will have 
+                                            ! to read the file again. So, we save the data on the way.
+                    
+            ! number of edges added
+            pos_con = 0
+            edges = 0 ! list of connections read
+            call print_done()
+        
+            ! Let's read the file again, this time saving the connections, since we already know the total number of connections.
+            call print_progress('Reading the file again and collecting data')
+            input_con_loop : do
+                read(f_unit,*,IOSTAT=f_sig) aux_i1, aux_i2
+                if (f_sig < 0) exit input_con_loop ! if end of file, exit.
+    
+                pos_con = pos_con + 1 ! new connection is saved
+            
+                ! save line to array
+                edges(1,pos_con) = aux_i1
+                edges(2,pos_con) = aux_i2
+            enddo input_con_loop
+            close(f_unit) ! we do not need the file anymore
+
+        end function edges_from_file
         
     end module
