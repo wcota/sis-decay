@@ -34,8 +34,8 @@
 ! For pure Python, see <https://github.com/wcota/dynSIS-py>
 ! For NetworkX library, see <https://github.com/wcota/dynSIS-networkx> (NetworkX implementation)
 
-module mod_netdata
-use mod_read_tools
+module netdata_mod
+use read_tools_mod
 implicit none
 
     ! file input names and signals

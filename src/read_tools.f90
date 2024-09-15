@@ -34,7 +34,7 @@
 ! For pure Python, see <https://github.com/wcota/dynSIS-py>
 ! For NetworkX library, see <https://github.com/wcota/dynSIS-networkx> (NetworkX implementation)
 
-module mod_read_tools
+module read_tools_mod
     integer                        :: inp_pos
     character*3, private, parameter :: sub_read = '#? '
     

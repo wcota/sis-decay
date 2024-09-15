@@ -35,9 +35,10 @@
 ! For NetworkX library, see <https://github.com/wcota/dynSIS-networkx> (NetworkX implementation)
 
 module mod_SIS_OGA
-use mod_netdata
-use mod_random
-use mod_read_tools
+use netdata_mod
+use read_tools_mod
+use rndgen_mod
+use kinds_mod
 implicit none
     
     ! File read/write arguments and parameter
@@ -67,6 +68,10 @@ implicit none
     real*8, allocatable           :: avg_rho(:), avg_t(:)   ! Average for rho at times t, averaged
     integer, allocatable          :: avg_sam(:), avg_samSurv(:) ! # of samples for each time t, and of survivng ones
     integer                       :: dyn_dt_pos, dyn_dt_pos_max ! auxiliar vars
+
+    ! random generator
+    integer(kind=i4) :: seed = 20240915
+    type(rndgen) :: rgen
     
 contains
     
@@ -92,7 +97,7 @@ contains
         ! Sort vertices and apply the initial condition
         do vti = 1, int(net_N*dynp_pINI)
             vti_ver : do
-                ver = random_int(1,net_N)
+                ver = rgen%int_i4(1,net_N)
                 if (dyn_sig(ver) == 0) then
                     dyn_NI = dyn_NI + 1
                     dyn_VI(dyn_NI) = ver
@@ -116,13 +121,14 @@ contains
         call random_initial_condition()
         
         dyn_time_loop : do while (dyn_t <= dynp_tmax)
-            
+        
+            rnd = rgen%rnd()
+
             ! Calculate the total rate
             dyn_R = (dyn_NI + 1d0*dynp_lb * dyn_Nk)
             
             ! Select the time step
-            rnd = max(random_d(), 1e-12) ! Avoid rnd = 0
-            dyn_dt = -log(rnd) / dyn_R
+            dyn_dt = -log(1.0_dp - rnd) / dyn_R
             
             ! Update the time
             dyn_t = dyn_t + dyn_dt
@@ -131,10 +137,10 @@ contains
             dyn_m = 1d0*dyn_NI/ dyn_R
             
             ! Try to heal
-            rnd = random_d()
+            rnd = rgen%rnd()
             if (rnd < dyn_m) then
                 ! Select one infected vertex from V^I
-                pos_inf = random_int(1,dyn_NI) 
+                pos_inf = rgen%int_i4(1,dyn_NI) 
                 ver = dyn_VI(pos_inf)
                 
                 ! Then, heal it
@@ -147,13 +153,13 @@ contains
             else
                 ! Select the infected vertex i with prob. proportional to k_i
                 select_infec : do
-                    pos_inf = random_int(1,dyn_NI)
+                    pos_inf = rgen%int_i4(1,dyn_NI)
                     ver = dyn_VI(pos_inf)
-                    if (random_d() < 1d0*net_k(ver)/(1d0*net_kmax)) exit select_infec
+                    if (rgen%rnd() < 1d0*net_k(ver)/(1d0*net_kmax)) exit select_infec
                 enddo select_infec
                 
                 ! select one of its neighbors
-                pos_nei = random_int(net_ini(ver) , net_ini(ver) + net_k(ver) - 1)
+                pos_nei = rgen%int_i4(net_ini(ver) , net_ini(ver) + net_k(ver) - 1)
                 ver = net_con(pos_nei)
                 
                 ! if not a phantom process, infect
@@ -210,8 +216,8 @@ contains
     
         ! Initate the random generator
         call print_info('')
-        call print_progress('Generating random seed')
-        call random_ini()
+        call print_progress('Starting pseudo random number generator')
+        call rgen%init(seed)
         call print_done()
     
         ! We are ready! All network data is here, now we need to read the dynamical parameters.
