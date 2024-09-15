@@ -51,23 +51,21 @@ module netdata_mod
             type(vertex), allocatable :: vertices(:)
         contains
             procedure :: build_from_edges
-            procedure :: buildEdges
+            procedure :: readEdges
         end type network
     
         public :: network, edges_from_file
         
     contains
         ! to be compatible with old calls
-        subroutine buildEdges(this, f_input)
+        subroutine readEdges(this, f_input)
             class(network), intent(inout) :: this
             character(len=*) :: f_input
 
             integer, allocatable :: edges(:,:)
+
+            call build_from_edges(this, edges_from_file(f_input))
             
-            edges = edges_from_file(f_input)
-            call build_from_edges(this, edges)
-            
-            deallocate(edges)
         end subroutine
 
         subroutine build_from_edges(this, edges)
@@ -81,7 +79,6 @@ module netdata_mod
             integer, allocatable        :: aux_degree(:) ! to check if all neighbors are in the list
             
             ! auxiliar integers
-            integer                     :: aux_i1, aux_i2
             integer                     :: iaux
             integer                     :: ver, ver1, ver2
 
@@ -98,33 +95,35 @@ module netdata_mod
         
             ! Is REALLY everything ok? Let's check!
             if (count(edges == 0) > 0) call print_error('Please, verify your data. Something is not right! [count(edges == 0) > 0]')
-            if (sum(this%vertices(:)%degree) .ne. this%skk) call print_error('Please, CHECK! Sum of degrees IS NOT equal the number of connections found & 
-    & in the file')
-            call print_done()
 
-
-            call print_progress('Builing adjacency list')
-            ! Everything OK! 
-            ! Now we will build the REAL list of adjacency.
+            call print_progress('Calculating degrees...')
 
             ! We will use aux_degree to store the position of the next neighbor to be added
             allocate(aux_degree(this%N))
             aux_degree = 0 ! auxiliar degree is zero at the beginning
-            
-            ! Allocate the neighbors list
-            do ver=1,this%N
-                allocate(this%vertices(ver)%nei(this%vertices(ver)%degree))
-                this%vertices(ver)%nei = 0
-            end do
             
             do iaux=1,size(edges,2)
                 ver1 = edges(1,iaux)
                 ver2 = edges(2,iaux)
                 
                 ! degree is added to both vertices
-                this%vertices(aux_i1)%degree = this%vertices(aux_i1)%degree + 1
-                this%vertices(aux_i2)%degree = this%vertices(aux_i2)%degree + 1
+                this%vertices(ver1)%degree = this%vertices(ver1)%degree + 1
+                this%vertices(ver2)%degree = this%vertices(ver2)%degree + 1
             enddo
+            
+            ! Allocate the neighbors list
+            do concurrent (ver=1:this%N)
+                allocate(this%vertices(ver)%nei(this%vertices(ver)%degree))
+                this%vertices(ver)%nei = 0
+            end do
+
+            if (sum(this%vertices(:)%degree) .ne. this%skk) call print_error('Please, CHECK! Sum of degrees IS NOT equal the number of connections found & 
+    & in the file')
+            call print_done()
+
+            call print_progress('Builing network object')
+            ! Everything OK! 
+            ! Now we will build the REAL list of adjacency.
             
             do iaux=1,size(edges,2)
                 ver1 = edges(1,iaux)
@@ -214,6 +213,7 @@ module netdata_mod
                 edges(2,pos_con) = aux_i2
             enddo input_con_loop
             close(f_unit) ! we do not need the file anymore
+            call print_done()
 
         end function edges_from_file
         
