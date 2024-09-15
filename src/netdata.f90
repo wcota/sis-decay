@@ -157,16 +157,16 @@ module netdata_mod
                 ver2 = tmp_con(2,iaux)
                 
                 ! Just to check...
-                if (this%vertices(ver1)%nei(aux_degree(ver1)) .ne. 0) call print_error('Somethings is wrong, con list overflow. Verify your data! &
+                if (this%vertices(ver1)%nei(aux_degree(ver1)+1) .ne. 0) call print_error('Somethings is wrong, con list overflow. Verify your data! &
     & [this%con(aux_ini(ver1)) .ne. 0]')
-                if (this%vertices(ver2)%nei(aux_degree(ver2)) .ne. 0) call print_error('Somethings is wrong, con list overflow. Verify your data! &
+                if (this%vertices(ver2)%nei(aux_degree(ver2)+1) .ne. 0) call print_error('Somethings is wrong, con list overflow. Verify your data! &
     & [this%con(aux_ini(ver2)) .ne. 0]')
                 
                 ! Ok...
-                this%vertices(ver1)%nei(aux_degree(ver1)) = ver2 
+                this%vertices(ver1)%nei(aux_degree(ver1)+1) = ver2 
                 aux_degree(ver1) = aux_degree(ver1) + 1
 
-                this%vertices(ver2)%nei(aux_degree(ver2)) = ver1
+                this%vertices(ver2)%nei(aux_degree(ver2)+1) = ver1
                 aux_degree(ver2) = aux_degree(ver2) + 1
             enddo
             
